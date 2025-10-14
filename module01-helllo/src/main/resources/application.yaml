@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: module01-helllo
+
+rocketmq:
+  name-server: localhost:9876  # NameServer 地址（主机访问 Docker）
+  producer:
+    group: producer-group  # Producer 组名
+    send-message-timeout: 3000  # 发送超时
+    retry-times-when-send-failed: 2  # 失败重试
+
+logging:
+  level:
+    org.apache.rocketmq: INFO  # 日志级别
