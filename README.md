@@ -19,6 +19,8 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 
 > Docker 安装 RocketMQ
 
+下面列举 Windows 端通过 Docker Desktop 安装 RocketMQ，Linux 端的安装可参照此博客： [博客链接](https://blog.csdn.net/Acloasia/article/details/130548105) ，已实际测试过可行。
+
 1. **拉取 RocketMQ 镜像**
 
    ```cmd
@@ -67,31 +69,44 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 
 5. **拉取RocketMQ控制台（rocketmq-dashboard）**
 
-   ```
+   ```cmd
    docker pull apacherocketmq/rocketmq-dashboard:latest
    ```
 
 6. **启动容器 Rocketmq-dashboard**
 
-   ```
+   ```cmd
    docker run -d --restart=always --name rmq-dashboard -p 8080:8082 --network rocketmq -e "JAVA_OPTS=-Xms256m -Xmx256m -Xmn128m -Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false" apacherocketmq/rocketmq-dashboard:latest
    ```
 
 7. **访问RMQ控制台**
 
-   ```
    http://localhost:8080/
-   ```
-
-   
 
 > 测试
 
-1. 创建 Topic
++ 生产者端
+  1. 创建消息生产者 producer，并制定生产者组名
+  2. 指定 Nameserver 地址
+  3. 启动 producer
+  4. 创建消息对象，指定主题 Topic、Tag 和消息体等
+  5. 发送消息
+  6. 关闭生产者 producer
++ 消费者端
+  1. 创建消费者 consumer，制定消费者组名
+  2. 指定 Nameserver 地址
+  3. 创建监听订阅主题 Topic 和 Tag 等
+  4. 处理消息
+  5. 启动消费者 consumer
 
-   ```
-   docker exec -it rmqnamesrv sh mqadmin updateTopic -n localhost:9876 -t TestTopic -c DefaultCluster
-   ```
+引入依赖
 
-   
+```xml
+<!--RocketMQ 依赖-->
+<dependency>
+    <groupId>org.apache.rocketmq</groupId>
+    <artifactId>rocketmq-client</artifactId>
+    <version>5.3.3</version>
+</dependency>
+```
 
