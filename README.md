@@ -24,7 +24,7 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 1. **拉取 RocketMQ 镜像**
 
    ```cmd
-   docker pull apache/rocketmq:latest
+   docker pull apache/rocketmq:5.1.4
    ```
 
 2. **创建容器共享网络 rocketmq**
@@ -35,16 +35,16 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 
 3. **启动容器** `NameServer`
 
-   ```cmd
-   docker run -d -p 9876:9876 -v D:/04-ProgramFiles/Docker/rocketmq/data/namesrv/logs:/root/logs -v D:/04-ProgramFiles/Docker/rocketmq/data/namesrv/store:/root/store --name rmqnamesrv -e "MAX_POSSIBLE_HEAP=100000000" rocketmqinc/rocketmq sh mqnamesrv
+   ```
+   docker run -d -p 9876:9876 --network rocketmq --name rmqnamesrv -v D:/04-ProgramFiles/Docker/rocketmq/data/namesrv/logs:/root/logs -v D:/04-ProgramFiles/Docker/rocketmq/data/namesrv/store:/root/store -e "MAX_POSSIBLE_HEAP=100000000" apache/rocketmq:5.1.4 sh mqnamesrv
    ```
 
    要先创建好对应的本地文件目录。
 
 4. **启动容器 Broker**
 
-   ```cmd
-   docker run -d -p 10911:10911 -p 10909:10909 -v D:/04-ProgramFiles/Docker/rocketmq/data/broker/logs:/opt/rocketmq-4.4.0/log -v D:/04-ProgramFiles/Docker/rocketmq/data/broker/store:/opt/rocketmq-4.4.0/store -v D:/04-ProgramFiles/Docker/rocketmq/conf/broker.conf:/opt/rocketmq-4.4.0/conf/broker.conf --name rmqbroker --link rmqnamesrv:namesrv -e "NAMESRV_ADDR=namesrv:9876" -e "JAVA_OPT=-Xms256m -Xmx256m -Xmn128m" rocketmqinc/rocketmq sh mqbroker -c /opt/rocketmq-4.4.0/conf/broker.conf
+   ```
+   docker run -d -p 10911:10911 -p 10909:10909 --network rocketmq --name rmqbroker -v D:/04-ProgramFiles/Docker/rocketmq/data/broker/logs:/opt/rocketmq-5.1.4/log -v D:/04-ProgramFiles/Docker/rocketmq/data/broker/store:/opt/rocketmq-5.1.4/store -v D:/04-ProgramFiles/Docker/rocketmq/conf/broker.conf:/opt/rocketmq-5.1.4/conf/broker.conf -e "NAMESRV_ADDR=rmqnamesrv:9876" -e "JAVA_OPT=-Xms256m -Xmx256m -Xmn128m" apache/rocketmq:5.1.4 sh mqbroker -c /opt/rocketmq-5.1.4/conf/broker.conf
    ```
 
    要先创建好对应的本地文件目录，在对应文件夹下创建 `broker.conf` ，文件内容：
@@ -53,19 +53,19 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
    brokerClusterName = DefaultCluster
    brokerName = broker-a
    brokerId = 0
-   brokerIP1 = 0.0.0.0  
-   brokerRole = ASYNC_MASTER
-   flushDiskType = ASYNC_FLUSH
-   deleteWhen = 04
-   fileReservedTime = 72
+   brokerIP1 = 172.26.16.1
+   brokerIP2 = 172.26.16.1 
+   namesrvAddr = rmqnamesrv:9876
    autoCreateTopicEnable = true
    autoCreateSubscriptionGroup = true
-   tlsTestModeEnable = false
-   
-   
-   listenPort = 10911  
-   fastListenPort = 10909  
+   listenPort = 10911
+   fastListenPort = 10909
+   brokerRole=ASYNC_MASTER
+   flushDiskType=ASYNC_FLUSH
+   enableActingMaster=false
    ```
+
+   > brokerIP 是宿主机 Docker Default Switch IP
 
 5. **拉取RocketMQ控制台（rocketmq-dashboard）**
 
@@ -76,8 +76,10 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 6. **启动容器 Rocketmq-dashboard**
 
    ```cmd
-   docker run -d --restart=always --name rmq-dashboard -p 8080:8082 --network rocketmq -e "JAVA_OPTS=-Xms256m -Xmx256m -Xmn128m -Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false" apacherocketmq/rocketmq-dashboard:latest
+   docker run -d --restart=always --name rmq-dashboard -p 8080:8082 --network rocketmq -e "JAVA_OPTS=-Xms256m -Xmx256m -Xmn128m -Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false -Dbroker.address=rmqbroker:10911" apacherocketmq/rocketmq-dashboard:latest
    ```
+
+   
 
 7. **访问RMQ控制台**
 
