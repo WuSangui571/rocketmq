@@ -87,6 +87,17 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
 
 > 测试
 
+引入依赖
+
+```xml
+<!--RocketMQ 依赖-->
+<dependency>
+    <groupId>org.apache.rocketmq</groupId>
+    <artifactId>rocketmq-client</artifactId>
+    <version>5.3.3</version>
+</dependency>
+```
+
 + 生产者端
   1. 创建消息生产者 producer，并制定生产者组名
   2. 指定 Nameserver 地址
@@ -101,14 +112,85 @@ RocketMQ 对比 RabbitMQ 的核心组件和结构差异：
   4. 处理消息
   5. 启动消费者 consumer
 
-引入依赖
+```java
+package com.sangui.hello;
 
-```xml
-<!--RocketMQ 依赖-->
-<dependency>
-    <groupId>org.apache.rocketmq</groupId>
-    <artifactId>rocketmq-client</artifactId>
-    <version>5.3.3</version>
-</dependency>
+
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageExt;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
+
+@SpringBootTest
+class HelloApplicationTests {
+    public static final String NAME_SERVER_ADDRESS = "172.26.16.1:9876";
+
+    @Test
+    void TestProducer() throws Exception {
+        // 创建一个生产者（指定一个组名）
+        DefaultMQProducer producer = new DefaultMQProducer("test-producer-group");
+        // 连接 NameServer
+        producer.setNamesrvAddr(NAME_SERVER_ADDRESS);
+        // 启动
+        producer.start();
+        // 创建消息
+        Message message = new Message("testTopic","Hello RocketMQ!".getBytes());
+
+        // 发送消息
+        SendResult sendResult = producer.send(message);
+        System.out.println("「日志」发送信息的状态码：" + sendResult.getSendStatus());
+        // 关闭生产者
+        producer.shutdown();
+    }
+    /**
+     * 测试消费者
+     *
+     * @throws Exception 异常
+     */
+    @Test
+    public void testConsumer() throws Exception {
+        // 创建一个消费者
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("test-consumer-group");
+        // consumer 连接 nameServer 的地址
+        consumer.setNamesrvAddr(NAME_SERVER_ADDRESS);
+        // 订阅一个主题，* 表示订阅这个主题的所有消息，后期会有消息过滤
+        consumer.subscribe("testTopic", "*");
+        // 写一个监听器（一直监听）
+        consumer.registerMessageListener(new MessageListenerConcurrently() {
+            // 匿名内部类
+            @Override
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
+                                                            ConsumeConcurrentlyContext context) {
+
+                System.out.println("「日志」我是消费者，第 0 条消息：" + new String(msgs.get(0).getBody()));
+                System.out.println("「日志」消费上下文：" + context.toString());
+                System.out.println(Thread.currentThread().getName() + "----" + msgs);
+
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            }
+        });
+        // 启动消费者，这个 start一定要写在 registerMessageListener 下面
+        consumer.start();
+        // 挂起当前线程的 GVM（监听的线程不会挂起），目的是持续监听。
+        System.in.read();
+    }
+}
 ```
 
+> RocketMQ 消费模式
+
+MQ的消费模式可以大致分为两种，一种是推Push，一种是拉Pull。
+
+Push 是服务端【MQ】主动推送消息给客户端，优点是及时性较好，但如果客户端没有做好流控，一旦服务端推送大量消息到客户端时，就会导致客户端消息堆积甚至崩溃。
+
+Pull 是客户端需要主动到服务端取数据，优点是客户端可以依据自己的消费能力进行消费，但拉取的频率也需要用户自己控制，拉取频繁容易造成服务端和客户端的压力，拉取间隔长又容易造成消费不及时。
+
+Push模式也是基于pull模式的，只能客户端内部封装了api，一般场景下，上游消息生产量小或者均速的时候，选择push模式。在特殊场景下，例如电商大促，抢优惠券等场景可以选择pull模式
